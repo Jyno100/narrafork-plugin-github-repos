@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "com.yh100200com.github-repos",
+  "version": "0.4.0",
+  "displayName": "GitHub Repos",
+  "description": "GitHub repository tools for narrators: list repositories, read files, search code, list issues/pull requests and comment on issues. Uses a GitHub personal access token stored as a plugin secret; works anonymously for public data when no token is configured. Supports GitHub Enterprise via NF_GITHUB_API_BASE.",
+  "publisher": {
+    "id": "com.yh100200com",
+    "name": "yh100200com"
+  },
+  "license": "MIT",
+  "engine": {
+    "runtime": "node",
+    "hostApi": ">=1.0 <2",
+    "rpc": "narrafork.rpc/1",
+    "features": [
+      "host_api.requests"
+    ],
+    "os": [
+      "linux",
+      "darwin",
+      "win32"
+    ],
+    "arch": [
+      "x64",
+      "arm64"
+    ],
+    "runner": "local-process"
+  },
+  "server": {
+    "entry": "server/index.mjs",
+    "transport": "stdio",
+    "protocol": "narrafork.rpc/1",
+    "workingDirectory": "package"
+  },
+  "ui": {
+    "entry": "ui/view.js",
+    "format": "iife"
+  },
+  "activationEvents": [
+    "onStartup",
+    "onView:github-config",
+    "onView:github-config-panel"
+  ],
+  "contributes": {
+    "providers": [],
+    "searchProviders": [],
+    "tools": [
+      {
+        "id": "github_list_repos",
+        "title": "列出 GitHub 仓库",
+        "description": "列出某个用户或组织的仓库。省略 owner 时列出当前 token 所属账号的仓库。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "用户名或组织名；省略则使用 token 所属账号"
+            },
+            "visibility": {
+              "type": "string",
+              "enum": [
+                "all",
+                "public",
+                "private"
+              ],
+              "description": "仓库可见性过滤，默认 all"
+            },
+            "sort": {
+              "type": "string",
+              "enum": [
+                "updated",
+                "pushed",
+                "full_name",
+                "created"
+              ],
+              "description": "排序字段，默认 updated"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "返回数量上限，默认 20"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_get_file",
+        "title": "读取 GitHub 仓库文件",
+        "description": "读取仓库中某个文件的文本内容。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string",
+              "description": "仓库所有者"
+            },
+            "repo": {
+              "type": "string",
+              "description": "仓库名"
+            },
+            "path": {
+              "type": "string",
+              "description": "文件路径，例如 src/index.ts"
+            },
+            "ref": {
+              "type": "string",
+              "description": "分支、标签或 commit SHA，默认仓库默认分支"
+            },
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 1048576,
+              "description": "返回内容的最大字节数，默认 262144"
+            }
+          },
+          "required": [
+            "owner",
+            "repo",
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_list_dir",
+        "title": "列出 GitHub 仓库目录",
+        "description": "列出仓库中某个目录下的文件与子目录。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string",
+              "description": "目录路径，省略表示仓库根目录"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "owner",
+            "repo"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_search_code",
+        "title": "搜索 GitHub 代码",
+        "description": "在 GitHub 上搜索代码，需要已配置 token。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "搜索语句，支持 repo:/org:/language: 等限定符"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "返回数量上限，默认 10"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_list_issues",
+        "title": "列出 GitHub Issue 与 PR",
+        "description": "列出仓库的 issue（可通过参数包含或排除 pull request）。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "open",
+                "closed",
+                "all"
+              ],
+              "description": "状态过滤，默认 open"
+            },
+            "includePullRequests": {
+              "type": "boolean",
+              "description": "是否同时返回 PR，默认 false",
+              "default": false
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "description": "返回数量上限，默认 20"
+            }
+          },
+          "required": [
+            "owner",
+            "repo"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_issue_detail",
+        "title": "查看 GitHub Issue 详情",
+        "description": "读取单个 issue 或 PR 的正文与元信息。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "maxBodyChars": {
+              "type": "integer",
+              "minimum": 256,
+              "maximum": 65536,
+              "description": "正文最大字符数，默认 8000"
+            }
+          },
+          "required": [
+            "owner",
+            "repo",
+            "number"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_create_issue_comment",
+        "title": "在 GitHub Issue 上发表评论",
+        "description": "在指定 issue 或 PR 下发表评论，需要已配置具有写入权限的 token。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "type": "string"
+            },
+            "repo": {
+              "type": "string"
+            },
+            "number": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "body": {
+              "type": "string",
+              "description": "评论正文，支持 Markdown"
+            }
+          },
+          "required": [
+            "owner",
+            "repo",
+            "number",
+            "body"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_token_list",
+        "title": "列出已保存的 GitHub Token",
+        "description": "列出插件里保存的所有 token（只显示标签，不显示明文），并标出当前使用的那个。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_token_add",
+        "title": "保存 GitHub Token",
+        "description": "保存一个 GitHub token 并可设为当前使用。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "token 的标签，例如 work / personal；留空表示默认 token"
+            },
+            "token": {
+              "type": "string",
+              "description": "GitHub PAT，通常以 ghp_ 或 github_pat_ 开头"
+            },
+            "makeActive": {
+              "type": "boolean",
+              "description": "是否立即设为当前使用，默认 true"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_token_use",
+        "title": "切换当前 GitHub Token",
+        "description": "把某个已保存的 token 设为当前使用。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "token 的标签（github_token_list 返回的 label）"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "github_token_remove",
+        "title": "删除 GitHub Token",
+        "description": "删除某个已保存的 token。",
+        "execution": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string",
+              "description": "token 的标签（github_token_list 返回的 label）"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        }
+      }
+    ],
+    "commands": [
+      {
+        "id": "verify-token",
+        "title": "验证 GitHub Token",
+        "description": "检查 token 是否有效，并显示它对应的 GitHub 账号",
+        "handler": "server",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "description": "要验证的 secret key；省略时验证当前使用的 token"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ],
+    "events": [],
+    "views": [
+      {
+        "id": "github-config",
+        "title": "GitHub Token",
+        "entry": "ui/view.js",
+        "surfaces": [
+          "settings"
+        ],
+        "scope": "global",
+        "instance": "singleton"
+      },
+      {
+        "id": "github-config-panel",
+        "title": "GitHub Token",
+        "entry": "ui/view.js",
+        "surfaces": [
+          "workspace",
+          "director",
+          "focus"
+        ],
+        "scope": "global",
+        "instance": "singleton",
+        "defaultPosition": "side"
+      }
+    ],
+    "themes": []
+  },
+  "permissions": {
+    "host": [
+      "provider.use",
+      "network.egress.allowlist",
+      "ui.panel",
+      "ui.notification",
+      "ui.open_external",
+      "secret.use_self",
+      "storage.read_self",
+      "storage.write_self"
+    ],
+    "network": {
+      "mode": "allowlist",
+      "allow": [
+        "api.github.com"
+      ]
+    },
+    "filesystem": {
+      "package": "readOnly",
+      "pluginData": "none",
+      "workspace": "none"
+    },
+    "process": {
+      "spawn": "none"
+    }
+  },
+  "secrets": [
+    {
+      "id": "github_token",
+      "label": "GitHub Personal Access Token",
+      "required": false,
+      "scope": [
+        "user"
+      ],
+      "usage": "outbound-network",
+      "inject": "ephemeral-reference"
+    }
+  ],
+  "dependencies": {
+    "plugins": {},
+    "runtime": {}
+  }
+}
