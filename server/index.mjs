@@ -14,7 +14,23 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const API_BASE = (process.env.NF_GITHUB_API_BASE ?? "").trim().replace(/\/+$/, "") || "https://api.github.com";
-const USER_AGENT = "narrafork-github-repos-plugin/0.3.5";
+/**
+ * Version reported to GitHub and to the host.
+ *
+ * Derived from manifest.json so the two cannot drift: a hardcoded copy here ships a
+ * User-Agent naming the previous release as soon as the manifest is bumped.
+ */
+const PLUGIN_VERSION_FALLBACK = "0.4.1";
+let cachedVersion = null;
+function pluginVersion() {
+	if (cachedVersion === null) {
+		cachedVersion = readPluginManifest()?.version ?? PLUGIN_VERSION_FALLBACK;
+	}
+	return cachedVersion;
+}
+function userAgent() {
+	return `narrafork-github-repos-plugin/${pluginVersion()}`;
+}
 const SECRET_ID = "github_token";
 /** Every managed token is stored under `github_token` or `github_token__<slug>`. */
 const SECRET_PREFIX = "github_token";
@@ -32,7 +48,6 @@ const ACTIVE_KEY = "activeSecretKey";
 const STORAGE_SCOPE = { type: "global" };
 const HOST_CALL_TIMEOUT_MS = 3000;
 const PLUGIN_ID = "com.yh100200com.github-repos";
-const PLUGIN_VERSION = "0.3.5";
 const RPC_PROTOCOL = "narrafork.rpc/1";
 const PLUGIN_FEATURES = ["host_api.requests"];
 
@@ -204,7 +219,7 @@ async function githubFetch(path, { method = "GET", body, accept } = {}) {
 	const token = await resolveToken();
 	const headers = {
 		Accept: accept ?? "application/vnd.github+json",
-		"User-Agent": USER_AGENT,
+		"User-Agent": userAgent(),
 		"X-GitHub-Api-Version": "2022-11-28",
 	};
 	if (token) headers.Authorization = `Bearer ${token}`;
@@ -562,7 +577,7 @@ const commands = {
 				headers: {
 					Authorization: `Bearer ${token}`,
 					Accept: "application/vnd.github+json",
-					"User-Agent": USER_AGENT,
+					"User-Agent": userAgent(),
 					"X-GitHub-Api-Version": "2022-11-28",
 				},
 			});
@@ -801,10 +816,10 @@ log(
 const manifest = readPluginManifest();
 const helloParams = {
 	pluginId: PLUGIN_ID,
-	version: manifest?.version ?? PLUGIN_VERSION,
+	version: pluginVersion(),
 	rpcProtocol: RPC_PROTOCOL,
 	features: Array.isArray(manifest?.engine?.features) ? manifest.engine.features : PLUGIN_FEATURES,
-	sdk: { name: "narrafork-github-repos", version: manifest?.version ?? PLUGIN_VERSION },
+	sdk: { name: "narrafork-github-repos", version: pluginVersion() },
 	platform: {
 		os: process.platform,
 		arch: process.arch,

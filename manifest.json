@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pluginId": "com.yh100200com.github-repos",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "displayName": "GitHub Repos",
   "description": "GitHub repository tools for narrators: list repositories, read files, search code, list issues/pull requests and comment on issues. Uses a GitHub personal access token stored as a plugin secret; works anonymously for public data when no token is configured. Supports GitHub Enterprise via NF_GITHUB_API_BASE.",
   "publisher": {
