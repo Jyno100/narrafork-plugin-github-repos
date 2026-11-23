@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pluginId": "com.yh100200com.github-repos",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "displayName": "GitHub Repos",
   "description": "GitHub repository tools for narrators: list repositories, read files, search code, list issues/pull requests and comment on issues. Uses a GitHub personal access token stored as a plugin secret; works anonymously for public data when no token is configured. Supports GitHub Enterprise via NF_GITHUB_API_BASE.",
   "publisher": {
@@ -135,17 +135,20 @@
           "type": "object",
           "properties": {
             "owner": {
-              "type": "string"
+              "type": "string",
+              "description": "GitHub 用户名或组织名，例如 octocat"
             },
             "repo": {
-              "type": "string"
+              "type": "string",
+              "description": "仓库名，不含 owner 前缀，例如 hello-world"
             },
             "path": {
               "type": "string",
               "description": "目录路径，省略表示仓库根目录"
             },
             "ref": {
-              "type": "string"
+              "type": "string",
+              "description": "分支名、tag 或 commit SHA；省略时使用仓库默认分支"
             }
           },
           "required": [
@@ -189,10 +192,12 @@
           "type": "object",
           "properties": {
             "owner": {
-              "type": "string"
+              "type": "string",
+              "description": "GitHub 用户名或组织名，例如 octocat"
             },
             "repo": {
-              "type": "string"
+              "type": "string",
+              "description": "仓库名，不含 owner 前缀，例如 hello-world"
             },
             "state": {
               "type": "string",
@@ -205,8 +210,7 @@
             },
             "includePullRequests": {
               "type": "boolean",
-              "description": "是否同时返回 PR，默认 false",
-              "default": false
+              "description": "是否同时返回 PR，默认 false"
             },
             "limit": {
               "type": "integer",
@@ -231,14 +235,17 @@
           "type": "object",
           "properties": {
             "owner": {
-              "type": "string"
+              "type": "string",
+              "description": "GitHub 用户名或组织名，例如 octocat"
             },
             "repo": {
-              "type": "string"
+              "type": "string",
+              "description": "仓库名，不含 owner 前缀，例如 hello-world"
             },
             "number": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Issue 或 Pull Request 的编号（整数）"
             },
             "maxBodyChars": {
               "type": "integer",
@@ -264,14 +271,17 @@
           "type": "object",
           "properties": {
             "owner": {
-              "type": "string"
+              "type": "string",
+              "description": "GitHub 用户名或组织名，例如 octocat"
             },
             "repo": {
-              "type": "string"
+              "type": "string",
+              "description": "仓库名，不含 owner 前缀，例如 hello-world"
             },
             "number": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 1,
+              "description": "Issue 或 Pull Request 的编号（整数）"
             },
             "body": {
               "type": "string",

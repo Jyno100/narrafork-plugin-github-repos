@@ -20,7 +20,7 @@ const API_BASE = (process.env.NF_GITHUB_API_BASE ?? "").trim().replace(/\/+$/, "
  * Derived from manifest.json so the two cannot drift: a hardcoded copy here ships a
  * User-Agent naming the previous release as soon as the manifest is bumped.
  */
-const PLUGIN_VERSION_FALLBACK = "0.4.1";
+const PLUGIN_VERSION_FALLBACK = "0.4.2";
 let cachedVersion = null;
 function pluginVersion() {
 	if (cachedVersion === null) {
