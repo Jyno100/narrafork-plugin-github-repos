@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "pluginId": "com.yh100200com.github-repos",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "displayName": "GitHub Repos",
   "description": "GitHub repository tools for narrators: list repositories, read files, search code, list issues/pull requests and comment on issues. Uses a GitHub personal access token stored as a plugin secret; works anonymously for public data when no token is configured. Supports GitHub Enterprise via NF_GITHUB_API_BASE.",
   "publisher": {
@@ -298,74 +298,38 @@
         }
       },
       {
-        "id": "github_token_list",
-        "title": "列出已保存的 GitHub Token",
-        "description": "列出插件里保存的所有 token（只显示标签，不显示明文），并标出当前使用的那个。",
-        "execution": "server",
-        "inputSchema": {
-          "type": "object",
-          "properties": {},
-          "additionalProperties": false
-        }
-      },
-      {
-        "id": "github_token_add",
-        "title": "保存 GitHub Token",
-        "description": "保存一个 GitHub token 并可设为当前使用。",
+        "id": "github_token",
+        "title": "管理 GitHub Token",
+        "description": "列出、添加、切换或删除插件保存的 GitHub token（只显示标签，不显示明文）。",
         "execution": "server",
         "inputSchema": {
           "type": "object",
           "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "list",
+                "add",
+                "use",
+                "remove"
+              ],
+              "description": "list 列出 / add 添加 / use 切换 / remove 删除"
+            },
             "label": {
               "type": "string",
-              "description": "token 的标签，例如 work / personal；留空表示默认 token"
+              "description": "token 标签。add 时可省略表示默认；use 和 remove 必填"
             },
             "token": {
               "type": "string",
-              "description": "GitHub PAT，通常以 ghp_ 或 github_pat_ 开头"
+              "description": "add 时的 token 明文，通常以 ghp_ 或 github_pat_ 开头"
             },
             "makeActive": {
               "type": "boolean",
-              "description": "是否立即设为当前使用，默认 true"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      {
-        "id": "github_token_use",
-        "title": "切换当前 GitHub Token",
-        "description": "把某个已保存的 token 设为当前使用。",
-        "execution": "server",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "label": {
-              "type": "string",
-              "description": "token 的标签（github_token_list 返回的 label）"
+              "description": "add 后是否立即设为当前使用，默认 true"
             }
           },
           "required": [
-            "label"
-          ],
-          "additionalProperties": false
-        }
-      },
-      {
-        "id": "github_token_remove",
-        "title": "删除 GitHub Token",
-        "description": "删除某个已保存的 token。",
-        "execution": "server",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "label": {
-              "type": "string",
-              "description": "token 的标签（github_token_list 返回的 label）"
-            }
-          },
-          "required": [
-            "label"
+            "action"
           ],
           "additionalProperties": false
         }

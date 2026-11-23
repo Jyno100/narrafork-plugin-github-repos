@@ -7,14 +7,11 @@ management and a settings panel.
 
 ## Features
 
-**11 tools**, all available to the model:
+**8 tools**, all available to the model:
 
 | Tool | What it does |
 | --- | --- |
-| `github_token_add` | Save a token under a label and make it active |
-| `github_token_list` | List saved labels (never the token values) and mark the active one |
-| `github_token_use` | Switch the active token |
-| `github_token_remove` | Delete a saved token |
+| `github_token` | One tool for token management, switched by `action`: `list` (labels only, never the values, plus which is active), `add`, `use`, `remove` |
 | `github_list_repos` | List repos for a user/org, or the token's own account |
 | `github_list_issues` | List issues and/or pull requests |
 | `github_issue_detail` | Read one issue or PR |
@@ -22,6 +19,9 @@ management and a settings panel.
 | `github_list_dir` | List a directory in a repo |
 | `github_get_file` | Read a text file from a repo |
 | `github_search_code` | Search code with full qualifier support |
+
+Token management is a single tool rather than four: the four operations share the same
+context and vocabulary, and every extra tool costs schema budget in the model request.
 
 **Token panel** (`workspace` / `director` / `focus` surfaces, plus a `settings` entry):
 

@@ -20,7 +20,7 @@ const API_BASE = (process.env.NF_GITHUB_API_BASE ?? "").trim().replace(/\/+$/, "
  * Derived from manifest.json so the two cannot drift: a hardcoded copy here ships a
  * User-Agent naming the previous release as soon as the manifest is bumped.
  */
-const PLUGIN_VERSION_FALLBACK = "0.4.2";
+const PLUGIN_VERSION_FALLBACK = "0.4.3";
 let cachedVersion = null;
 function pluginVersion() {
 	if (cachedVersion === null) {
@@ -406,86 +406,84 @@ const tools = {
 		};
 	},
 
-	/** List every saved token (labels only — secret values are never echoed). */
-	async github_token_list() {
-		const keys = await listTokenKeys();
-		let active = SECRET_ID;
-		try {
-			const stored = await hostCall("storage.get", { scope: STORAGE_SCOPE, key: ACTIVE_KEY });
-			const value = stored && typeof stored === "object" ? stored.value : stored;
-			if (typeof value === "string" && value.startsWith(SECRET_PREFIX)) active = value;
-		} catch {
-			/* keep default */
+	/**
+	 * Token 管理（list / add / use / remove 四合一）。
+	 *
+	 * 合并成一个工具是为了给宿主省名额：插件元数据里的工具总数有上限，
+	 * 四个 token 操作共用同样的上下文，没必要各占一个。
+	 */
+	async github_token(input) {
+		const action = String(input?.action || "list").trim().toLowerCase();
+
+		if (action === "list") {
+			const keys = await listTokenKeys();
+			let active = SECRET_ID;
+			try {
+				const stored = await hostCall("storage.get", { scope: STORAGE_SCOPE, key: ACTIVE_KEY });
+				const value = stored && typeof stored === "object" ? stored.value : stored;
+				if (typeof value === "string" && value.startsWith(SECRET_PREFIX)) active = value;
+			} catch {
+				/* keep default */
+			}
+			return {
+				active,
+				tokens: keys.map((key) => ({
+					key,
+					label: key === SECRET_ID ? "默认" : key.slice(SECRET_PREFIX.length + 2),
+					active: key === active,
+				})),
+			};
 		}
-		return {
-			active,
-			tokens: keys.map((key) => ({
+
+		if (action === "add") {
+			const token = requireString(input, "token");
+			if (!/^(gh[pousr]_|github_pat_)[A-Za-z0-9_]+$/.test(token) && token.length < 20) {
+				throw new ToolError("这不像一个 GitHub token（通常以 ghp_ / github_pat_ 开头）");
+			}
+			const rawLabel = typeof input.label === "string" ? input.label.trim() : "";
+			const slug = rawLabel.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+			const key = slug === "" ? SECRET_ID : `${SECRET_PREFIX}__${slug}`;
+
+			await hostCall("secrets.set", { key, value: token });
+			const makeActive = input.makeActive !== false;
+			if (makeActive) await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: key });
+			invalidateToken();
+			log(`token saved as ${key}${makeActive ? " (active)" : ""}`);
+			return {
 				key,
-				label: key === SECRET_ID ? "默认" : key.slice(SECRET_PREFIX.length + 2),
-				active: key === active,
-			})),
-		};
-	},
-
-	/** Save a token under a label, optionally making it the active one. */
-	async github_token_add(input) {
-		const token = requireString(input, "token");
-		if (!/^(gh[pousr]_|github_pat_)[A-Za-z0-9_]+$/.test(token) && token.length < 20) {
-			throw new ToolError("这不像一个 GitHub token（通常以 ghp_ / github_pat_ 开头）");
+				label: slug === "" ? "默认" : slug,
+				active: makeActive,
+				note: makeActive ? "已设为当前使用的 token" : "已保存，未切换",
+			};
 		}
-		const rawLabel = typeof input.label === "string" ? input.label.trim() : "";
-		const slug = rawLabel.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
-		const key = slug === "" ? SECRET_ID : `${SECRET_PREFIX}__${slug}`;
 
-		await hostCall("secrets.set", { key, value: token });
-		const makeActive = input.makeActive !== false;
-		if (makeActive) await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: key });
-		invalidateToken();
-		log(`token saved as ${key}${makeActive ? " (active)" : ""}`);
-
-		return {
-			key,
-			label: slug === "" ? "默认" : slug,
-			active: makeActive,
-			note: makeActive ? "已设为当前使用的 token" : "已保存，未切换",
-		};
-	},
-
-	/** Switch which saved token the tools use. */
-	async github_token_use(input) {
-		const target = requireString(input, "label");
-		const keys = await listTokenKeys();
-		const key =
-			keys.find((candidate) => candidate === target) ??
-			keys.find((candidate) => candidate === `${SECRET_PREFIX}__${target}`) ??
-			keys.find((candidate) => candidate === SECRET_PREFIX && target === "默认");
-		if (!key) {
-			throw new ToolError(`没有找到 token「${target}」。现有：${keys.join(", ") || "（空）"}`);
+		if (action === "use" || action === "remove") {
+			const target = requireString(input, "label");
+			const keys = await listTokenKeys();
+			const key =
+				keys.find((candidate) => candidate === target) ??
+				keys.find((candidate) => candidate === `${SECRET_PREFIX}__${target}`) ??
+				keys.find((candidate) => candidate === SECRET_PREFIX && target === "默认");
+			if (!key) {
+				throw new ToolError(`没有找到 token「${target}」。现有：${keys.join(", ") || "（空）"}`);
+			}
+			if (action === "use") {
+				await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: key });
+				invalidateToken();
+				return { active: key, note: "已切换" };
+			}
+			await hostCall("secrets.delete", { key });
+			const remaining = keys.filter((candidate) => candidate !== key);
+			await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: remaining[0] ?? SECRET_ID });
+			invalidateToken();
+			return { removed: key, active: remaining[0] ?? SECRET_ID };
 		}
-		await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: key });
-		invalidateToken();
-		return { active: key, note: "已切换" };
+
+		throw new ToolError(`未知 action「${action}」，支持：list / add / use / remove`);
 	},
 
-	/** Delete a saved token by label. */
-	async github_token_remove(input) {
-		const target = requireString(input, "label");
-		const keys = await listTokenKeys();
-		const key =
-			keys.find((candidate) => candidate === target) ??
-			keys.find((candidate) => candidate === `${SECRET_PREFIX}__${target}`) ??
-			keys.find((candidate) => candidate === SECRET_PREFIX && target === "默认");
-		if (!key) {
-			throw new ToolError(`没有找到 token「${target}」。现有：${keys.join(", ") || "（空）"}`);
-		}
-		await hostCall("secrets.delete", { key });
-		const remaining = keys.filter((candidate) => candidate !== key);
-		await hostCall("storage.set", { scope: STORAGE_SCOPE, key: ACTIVE_KEY, value: remaining[0] ?? SECRET_ID });
-		invalidateToken();
-		return { removed: key, active: remaining[0] ?? SECRET_ID };
-	},
-
-	async github_issue_detail(input) {		const owner = requireString(input, "owner");
+	async github_issue_detail(input) {
+		const owner = requireString(input, "owner");
 		const repo = requireString(input, "repo");
 		const number = optionalInt(input, "number", NaN, 1, Number.MAX_SAFE_INTEGER);
 		if (!Number.isFinite(number)) throw new ToolError("参数 number 必须是正整数");
